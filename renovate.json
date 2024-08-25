@@ -3,7 +3,7 @@
     "extends": [
       "config:base"
     ],
-    "baseBranches": ["main"],
+    "baseBranches": ["main", "master"],
     "timezone": "Europe/Paris",
     "schedule": ["before 4am"],
     "prCreation": "immediate",
