@@ -1,7 +1,7 @@
 import React from "react";
 import { Heading, Flex, Divider } from "@chakra-ui/react";
 
-const Header = () => {
+const Top = () => {
   return (
     <Flex
       as="nav"
