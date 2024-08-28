@@ -1,13 +1,12 @@
-import React from "react";
-import { useEffect } from "react";
+import { useEffect } from "react"
 import { useNavigate, Outlet, Link } from "react-router-dom";
-import Cookies from "js-cookie";
+import { useCookies } from 'react-cookie'
 
 export default function Secure() {
   const navigate = useNavigate();
+  const [cookies] = useCookies(['access_token'], {doNotParse: true})
   useEffect(() => {
-    const accessToken = Cookies.get("access_token");
-    if (!accessToken) {
+    if (!cookies.access_token) {
       navigate("/");
     }
   }, [navigate]);
