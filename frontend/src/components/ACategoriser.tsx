@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { FC, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCookies } from 'react-cookie'
 import { DataGrid, GridColDef, ValueOptions, useGridApiRef } from '@mui/x-data-grid';
+import { useTransactionsLoader } from "../api/FFIIITransaction";
 
 const dtFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeZone: 'Europe/Paris'});
 const nbFmt = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
-type Transaction = {
+interface Transaction {
   id: string
   journal_id: string
   type: string
@@ -16,12 +17,12 @@ type Transaction = {
   category_id: string
 }
 
-export default function Categories() {
+const ACategoriser: FC = () => {
   const [cookies] = useCookies(['access_token'], {doNotParse: true})
-  const [categories, setCategories] = useState<ValueOptions[]>(new Array<ValueOptions>());
   const [transactions, setTransactions] = useState<Transaction[]>(new Array<Transaction>());
+  const { data, loading: dataLoading, error: dataError } = useTransactionsLoader(config, queryParams);
+  const [categories, setCategories] = useState<ValueOptions[]>(new Array<ValueOptions>());
   const apiRef = useGridApiRef();
-
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', type: 'string', editable: false },
     { field: 'journal_id', headerName: 'JID', type: 'string', editable: false },
@@ -42,9 +43,9 @@ export default function Categories() {
   
   
   useEffect(() => {
-    function setData(data: any) {
+    function setData(data: FFIICategoryResult) {
       const categories = new Array<ValueOptions>();
-      data.data.map((categorie: any) => { categories.push({value: categorie.id, label: categorie.attributes.name}) })
+      data.data.map((categorie: FFIIICatefory) => { categories.push({value: categorie.id, label: categorie.attributes.name}) })
       setCategories(categories);
     }
     fetch("/api/v1/categories", { headers: {"Authorization": `Bearer ${cookies.access_token}`} })
@@ -53,18 +54,19 @@ export default function Categories() {
       .catch((error) => console.log(error));
   }, []);
   
+  // Load transactions
   useEffect(() => {
-    function setData(data: any) {
+    function setData(data: FFIIITransactionResult) {
       const transactions = new Array<Transaction>();
-      data.data.map((transaction: any) => {
-        transaction.attributes.transactions.map((split: any) => {
+      data.data.map((transaction: FFIIITransaction) => {
+        transaction.attributes.transactions.map((split: FFIIITransactionItem) => {
           return transactions.push({
               id: transaction.id,
               journal_id: split.transaction_journal_id,
               type: split.type,
               date: new Date(split.date),
               description: split.description,
-              amount: split.amount,
+              amount: parseFloat(split.amount),
               category_id: split.category_id
           });
         });
@@ -76,6 +78,8 @@ export default function Categories() {
       .then((data) => setData(data))
       .catch((error) => console.log(error));
   }, []);
+
+
 
   function handleCellUpdate(updatedRow: Transaction, originalRow: Transaction) {
     console.log(`handleCellUpdate: ${originalRow.id}/${originalRow.journal_id} ${originalRow.category_id}->${updatedRow.category_id}`)
@@ -146,3 +150,5 @@ export default function Categories() {
     </div>
   );
 }
+
+export default ACategoriser;

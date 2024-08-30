@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { FC, useState } from 'react';
 import { useNavigate } from "react-router-dom"
 import { useCookies } from 'react-cookie'
 
-export default function Login() {
-  const navigate = useNavigate()
+const Login: FC = () => {
+    const navigate = useNavigate()
   const [token, setToken] = useState("")
   const [, setCookie] = useCookies(['access_token'], {doNotParse: true})
 
@@ -33,3 +33,5 @@ export default function Login() {
     </div>
   );
 }
+
+export default Login;
