@@ -1,4 +1,6 @@
-export interface FFIIILinks {
+export type FFIIILinks = Map<string, FFIIILink|string>
+
+export interface FFIIILink {
   rel: string
   uri: string 
 }

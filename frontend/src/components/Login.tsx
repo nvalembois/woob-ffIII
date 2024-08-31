@@ -1,22 +1,31 @@
 import { FC, useState } from 'react';
 import { useNavigate } from "react-router-dom"
 import { useCookies } from 'react-cookie'
+import { useConfig } from '../utils/configLoader';
+import { createApiUrlWithParams } from '../api/FFIIIApi'
 
 const Login: FC = () => {
-    const navigate = useNavigate()
+  const navigate = useNavigate()
   const [token, setToken] = useState("")
   const [, setCookie] = useCookies(['access_token'], {doNotParse: true})
+  const { config } = useConfig();
 
   async function handleClick(){
-    try {
-      await fetch(
-        "/api/v1/about/user" , { headers: {Authorization: `Bearer ${token}`, mode: 'cors'} }
-      );
+    if (!config || !config.apiUrl) return;
+    console.log(config)
+    if (!config.apiUrl) return;
+    console.log(config.apiUrl)
+    console.log(createApiUrlWithParams({ apiUrl: "https://firefly.local" }, "/api/v1/about/user"))
+    fetch(
+      createApiUrlWithParams({ apiUrl: "https://firefly.local" }, "/api/v1/about/user"), 
+      { headers: {Authorization: `Bearer ${token}`, mode: 'cors'} }
+    ).then((response) => {
+      console.log(response)
       setCookie("access_token", token)
       navigate('/secure')
-    } catch (error) {
+    }).catch((error) => {
       console.log(error)
-    }
+    });
   }
 
   return (

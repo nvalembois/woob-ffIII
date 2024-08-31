@@ -19,13 +19,13 @@ data:
           location = /50x.html {
               root   /usr/share/nginx/html;
           }
-          #location ~ \.php$ {
-          #    root           html;
-          #    fastcgi_pass   127.0.0.1:9000;
-          #    fastcgi_index  index.php;
-          #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
-          #    include        fastcgi_params;
-          #}
+          location /api {
+              proxy_pass http://unix:/var/run/python/api.sock;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+          }
           add_header 'Access-Control-Allow-Origin' '$CORS_ORIGN';
           add_header 'Access-Control-Allow-Methods' '$CORS_METHODS';
       }
@@ -48,7 +48,7 @@ spec:
     spec:
       containers:
       - image: docker.io/nginxinc/nginx-unprivileged:1.27.1-alpine-slim
-        name: nginx-unpriviledged
+        name: frontend
         env:
         - name: CORS_ORIGN
           value: '*'
@@ -64,9 +64,45 @@ spec:
         - name: config
           mountPath: "/etc/nginx/templates"
           readOnly: true
-        - name: data
+        - name: frontend
           mountPath: "/usr/share/nginx/html"
           readOnly: true
+        - name: socket
+          mountPath: "/var/run/python"
+          readOnly: true
+      - image: wff-api:latest
+        name: api
+        workingDir: /app
+        command:
+        - uvicorn
+        args:
+        - app:app
+        - --uds
+        - /var/run/python/api.sock
+        - --workers
+        - 3
+        - --reload
+        env:
+        - name: PYTHONPYCACHEPREFIX
+          value: /tmp/pycache
+        - name: PS1
+          value: '(venv) \w \$ '
+        resources: {}
+        volumeMounts:
+        - name: socket
+          mountPath: "/var/run/python"
+        - name: cache
+          mountPath: "/tmp/pycache"
+        - name: venv
+          mountPath: "/venv"
+          readOnly: true
+        - name: api
+          mountPath: "/app"
+          readOnly: true
+      hostAliases:
+      - hostnames:
+        - firefly.local
+        ip: '192.168.1.161'
       volumes:
       - name: config
         configMap:
@@ -74,7 +110,23 @@ spec:
           items:
           - key: "default.conf.template"
             path: "default.conf.template"
-      - name: data
+      - name: frontend
         hostPath:
           path: "/home/nicolas/git/apps/woob-ffIII/frontend/dist"
           type: Directory
+      - name: api
+        hostPath:
+          path: "/home/nicolas/git/apps/woob-ffIII/backend/src/app"
+          type: Directory
+      - name: socket
+        emptyDir:
+          medium: Memory
+          sizeLimit: 10Mi
+      - name: venv
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Gi
+      - name: cache
+        emptyDir:
+          medium: Memory
+          sizeLimit: 200Mi

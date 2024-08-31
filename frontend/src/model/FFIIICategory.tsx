@@ -15,7 +15,7 @@ export interface FFIIICatefory {
     attributes: FIIICategoryAttributes
 }
 
-export interface FFIICategoryResult {
+export interface FFIIICategoriesResult {
   data: Array<FFIIICatefory>
   meta: FFIIIMetaResult
 }

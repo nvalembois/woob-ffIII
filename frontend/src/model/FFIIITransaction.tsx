@@ -76,11 +76,11 @@ export interface FFIIITransaction {
   type: string
   id: string
   attributes: FFIIITransactionAttributes
-  links: Map<string, FFIIILinks|string>
+  links: FFIIILinks
 }
 
-export interface FFIIITransactionResult {
+export interface FFIIITransactionsResult {
   data: Array<FFIIITransaction>
   meta: FFIIIMetaResult
-  links: Map<string, FFIIILinks|string>
+  links: FFIIILinks
 }
