@@ -1,12 +1,17 @@
-import { useState, useEffect } from "react";
+import { FC, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCookies } from 'react-cookie'
 import { DataGrid, GridColDef, ValueOptions, useGridApiRef } from '@mui/x-data-grid';
+import { useConfig } from '../utils/configLoader';
+import { useTransactionsLoader } from "../api/FFIIITransaction";
+import { useCategoriesLoader } from "../api/FFIIICategories";
+import { FFIIICatefory } from "../model/FFIIICategory";
+import { FFIIITransaction, FFIIITransactionItem } from "../model/FFIIITransaction";
 
 const dtFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeZone: 'Europe/Paris'});
 const nbFmt = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
-type Transaction = {
+interface Transaction {
   id: string
   journal_id: string
   type: string
@@ -16,12 +21,55 @@ type Transaction = {
   category_id: string
 }
 
-export default function Categories() {
+const ACategoriser: FC = () => {
+  // get cookies
   const [cookies] = useCookies(['access_token'], {doNotParse: true})
-  const [categories, setCategories] = useState<ValueOptions[]>(new Array<ValueOptions>());
-  const [transactions, setTransactions] = useState<Transaction[]>(new Array<Transaction>());
-  const apiRef = useGridApiRef();
+  // verify session
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (! cookies.access_token) {
+      navigate("/");
+    }
+  }, [navigate]);
+  
+  // load config
+  const { config } = useConfig();
+  
+  // Load categories
+  const [categories, setCategories] = useState<Array<ValueOptions>>(new Array<ValueOptions>());
+  const { categoriesResult } = useCategoriesLoader(config, cookies.access_token);
+  useEffect(() => {
+    if (!categoriesResult) return;
+    const categories = new Array<ValueOptions>();
+    categoriesResult.data.map((categorie: FFIIICatefory) => { 
+      categories.push({value: categorie.id, label: categorie.attributes.name})
+    })
+    setCategories(categories);
+  }, []);
 
+  // Load transactions
+  const { transactionsResult } = useTransactionsLoader(config, cookies.access_token, {category: "14"});
+  const [transactions, setTransactions] = useState<Array<Transaction>>(new Array<Transaction>());
+  useEffect(() => {
+    if (!transactionsResult) return;
+    const transactions = new Array<Transaction>();
+    transactionsResult.data.map((transaction: FFIIITransaction) => {
+      transaction.attributes.transactions.map((split: FFIIITransactionItem) => {
+        return transactions.push({
+            id: transaction.id,
+            journal_id: split.transaction_journal_id,
+            type: split.type,
+            date: new Date(split.date),
+            description: split.description,
+            amount: parseFloat(split.amount),
+            category_id: split.category_id
+        });
+      });
+    });
+    setTransactions(transactions)
+  }, []);
+
+  const apiRef = useGridApiRef();
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', type: 'string', editable: false },
     { field: 'journal_id', headerName: 'JID', type: 'string', editable: false },
@@ -32,50 +80,6 @@ export default function Categories() {
       valueFormatter: (value: number) => {return nbFmt.format(value)}, },
     { field: 'category_id', headerName: 'Catégorie', type: 'singleSelect', valueOptions: categories, editable: true },
   ];
-
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (! cookies.access_token) {
-      navigate("/");
-    }
-  }, [navigate]);
-  
-  
-  useEffect(() => {
-    function setData(data: any) {
-      const categories = new Array<ValueOptions>();
-      data.data.map((categorie: any) => { categories.push({value: categorie.id, label: categorie.attributes.name}) })
-      setCategories(categories);
-    }
-    fetch("/api/v1/categories", { headers: {"Authorization": `Bearer ${cookies.access_token}`} })
-      .then((response) => response.json())
-      .then((data) => setData(data))
-      .catch((error) => console.log(error));
-  }, []);
-  
-  useEffect(() => {
-    function setData(data: any) {
-      const transactions = new Array<Transaction>();
-      data.data.map((transaction: any) => {
-        transaction.attributes.transactions.map((split: any) => {
-          return transactions.push({
-              id: transaction.id,
-              journal_id: split.transaction_journal_id,
-              type: split.type,
-              date: new Date(split.date),
-              description: split.description,
-              amount: split.amount,
-              category_id: split.category_id
-          });
-        });
-      });
-      setTransactions(transactions)
-    }
-    fetch("/api/v1/categories/14/transactions", { headers: {Authorization: `Bearer ${cookies.access_token}`}})
-      .then((response) => response.json())
-      .then((data) => setData(data))
-      .catch((error) => console.log(error));
-  }, []);
 
   function handleCellUpdate(updatedRow: Transaction, originalRow: Transaction) {
     console.log(`handleCellUpdate: ${originalRow.id}/${originalRow.journal_id} ${originalRow.category_id}->${updatedRow.category_id}`)
@@ -146,3 +150,5 @@ export default function Categories() {
     </div>
   );
 }
+
+export default ACategoriser;
