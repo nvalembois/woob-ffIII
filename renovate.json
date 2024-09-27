@@ -8,5 +8,11 @@
     "schedule": ["before 4am"],
     "prCreation": "immediate",
     "automerge": true,
-    "prHourlyLimit": 15
+    "prHourlyLimit": 15,
+    "packageRules": [
+      {
+        "matchDatasources": ["npm"],
+        "groupName": "images"
+      }
+    ]
   }
