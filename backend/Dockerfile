@@ -1,4 +1,4 @@
-FROM docker.io/library/python:3.12.5-alpine3.20
+FROM docker.io/library/python:3.12.6-alpine3.20
 
 # Mettre à jour le magasin de certificats CA
 COPY leno.crt /usr/local/share/ca-certificates/leno.crt
