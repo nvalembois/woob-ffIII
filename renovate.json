@@ -3,7 +3,7 @@
     "extends": [
       "config:base"
     ],
-    "baseBranches": ["main", "master"],
+    "baseBranches": ["master"],
     "timezone": "Europe/Paris",
     "schedule": ["before 4am"],
     "prCreation": "immediate",
@@ -12,7 +12,16 @@
     "packageRules": [
       {
         "matchDatasources": ["npm"],
-        "groupName": "images"
+        "groupName": "npm"
+      },
+      {
+        "matchDatasources": ["docker"],
+        "matchPackageNames": ["docker.io/library/python"],
+        "groupName": "python"
+      },
+      {
+        "matchDatasources": ["pypi"],
+        "groupName": "python"
       }
     ]
   }
