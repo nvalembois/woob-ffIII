@@ -38,10 +38,11 @@ export const useCategoriesLoader = (config: Config | null, access_token: string,
     const loadData = async () => {
       setLoading(true);
       try {
-        const url: string = `${config.apiUrl}/v1/Categories`;
         const response = await fetch(
-          createApiUrlWithParams(config, url, paramsToRecord(params)),
-          { headers: {Authorization: `Bearer ${access_token}`}}
+          createApiUrlWithParams(config, '/v1/categories', paramsToRecord(params)),
+          { headers: {Authorization: `Bearer ${access_token}`},
+            mode: 'cors'
+          }
         );
         if (!response.ok) {
           throw new Error(`Failed to fetch data: ${response.statusText}`);

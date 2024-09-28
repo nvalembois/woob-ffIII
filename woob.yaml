@@ -6,29 +6,11 @@ metadata:
     app: ffw
   name: ffw
 data:
-  default.conf.template: |
-      server {
-          listen       8080;
-          server_name  localhost;
-          location / {
-              root   /usr/share/nginx/html;
-              index  index.html index.htm;
-          }
-          #error_page  404              /404.html;
-          error_page   500 502 503 504  /50x.html;
-          location = /50x.html {
-              root   /usr/share/nginx/html;
-          }
-          location /api {
-              proxy_pass http://unix:/var/run/python/api.sock;
-              proxy_set_header Host $host;
-              proxy_set_header X-Real-IP $remote_addr;
-              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-              proxy_set_header X-Forwarded-Proto $scheme;
-          }
-          add_header 'Access-Control-Allow-Origin' '$CORS_ORIGN';
-          add_header 'Access-Control-Allow-Methods' '$CORS_METHODS';
-      }
+  ADDHEADER: |
+    :
+    add_header 'Access-Control-Allow-Origin' '*';
+    add_header 'Access-Control-Allow-Methods' 'GET,PUT,POST,OPTIONS';
+    add_header 'Content-Security-Policy' 'default-src 'self';connect-src 'self' firefly.local;';
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -50,10 +32,14 @@ spec:
       - image: docker.io/nginxinc/nginx-unprivileged:1.27.1-alpine-slim
         name: frontend
         env:
-        - name: CORS_ORIGN
-          value: '*'
-        - name: CORS_METHODS
-          value: 'GET,PUT,POST,OPTIONS'
+        - name: APIURL
+          value: http://unix:/var/run/python/api.sock
+        - name: ADDHEADER
+          value: |
+            :
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET,PUT,POST,OPTIONS';
+            add_header 'Content-Security-Policy' 'default-src 'self';connect-src 'self' firefly.local;';
         ports:
         - containerPort: 8080
           hostPort: 3000
@@ -61,12 +47,6 @@ spec:
           protocol: TCP
         resources: {}
         volumeMounts:
-        - name: config
-          mountPath: "/etc/nginx/templates"
-          readOnly: true
-        - name: frontend
-          mountPath: "/usr/share/nginx/html"
-          readOnly: true
         - name: socket
           mountPath: "/var/run/python"
           readOnly: true
