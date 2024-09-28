@@ -1,24 +1,46 @@
-from fastapi import FastAPI, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, status, Request
+from fastapi.responses import RedirectResponse
+# from fastapi.middleware.cors import CORSMiddleware
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.requests import Request
-
-app = FastAPI()
-
-# in a productive app, DO NOT leave any of the following in your code
-# ACTION ITEM: replace these placeholders with your own values
-CLIENT_ID = '6'
-CLIENT_SECRET = 'COj8BUGXiLifoaHibqtmjZ8leW6QXqk8YuV6Ff7p'
-SESSION_SECRET = 'fdqsjlkmfjqsdmliejqfmk'
-
 
 # initialize the API
 app = FastAPI()
 
-app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
+## Configure Session handler
+SESSION_SECRET = 'fdqsjlkmfjqsdmliejqfmk'
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET)
 
-# configure OAuth client
+def is_safe_url(url: str, allowed_hosts: list[str]) -> bool:
+    try:
+        parsed_url = urlparse(url)
+        return parsed_url.netloc in allowed_hosts
+    except Exception:
+        return False
+SAFE_HOSTS = [
+    "127.0.0.1",
+    "localhost"
+]
+### Configure CORS
+# origins = [
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+#     "localhost:3000",
+#     "127.0.0.1:3000"
+# ]
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"]
+# )
+
+### configure OAuth client
+CLIENT_ID = '6'
+CLIENT_SECRET = 'COj8BUGXiLifoaHibqtmjZ8leW6QXqk8YuV6Ff7p'
 oauth = OAuth()
 oauth.register(  # this allows us to call oauth.firefly later on
     'firefly',
@@ -34,15 +56,16 @@ oauth.register(  # this allows us to call oauth.firefly later on
 async def get_authorization_code(request: Request):
     """OAuth2 flow, step 1: have the user log into firefly III to obtain an authorization code grant
     """
+
     redirect_uri = request.url_for('auth')
-    return await oauth.firefly.authorize_redirect(request, 'http://127.0.0.1:3000/api/auth/callback')
+    redirect_uri = redirect_uri.replace(port=3000)
+    return await oauth.firefly.authorize_redirect(request, redirect_uri)
 
 
 @app.get('/api/auth/callback')
 async def auth(request: Request):
     """OAuth2 flow, step 2: exchange the authorization code for access token
     """
-
     # exchange auth code for token
     try:
         token = await oauth.firefly.authorize_access_token(request)
@@ -52,56 +75,21 @@ async def auth(request: Request):
             detail=error.error
         )
 
-    # you now have a firefly token. Do whatever you need with it
-    return token
+    # Créer une réponse de redirection vers l'application d'origine
+    response = RedirectResponse(url='/')
+    # Récupérer la durée de vie du token depuis la réponse OAuth
+    expires_in = token.get("expires_in", 3600)  # Utiliser 3600 secondes (1 heure) par défaut si non spécifié
 
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "localhost:3000",
-    "127.0.0.1:3000"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-todos = [
-    {
-        "id": "1",
-        "item": "Read a book."
-    },
-    {
-        "id": "2",
-        "item": "Cycle around town."
-    }
-]
-@app.get("/api/todo", tags=["todos"])
-async def get_todos() -> dict:
-    return { "data": todos }
-@app.post("/api/todo", tags=["todos"])
-async def add_todo(todo: dict) -> dict:
-    todos.append(todo)
-    return {
-        "data": { "Todo added." }
-    }
-@app.put("/api/todo/{id}", tags=["todos"])
-async def update_todo(id: int, body: dict) -> dict:
-    for todo in todos:
-        if int(todo["id"]) == id:
-            todo["item"] = body["item"]
-            return {
-                "data": f"Todo with id {id} has been updated."
-            }
-
-    return {
-        "data": f"Todo with id {id} not found."
-    }
-
+    # Ajouter le token sous forme de cookie sécurisé
+    response.set_cookie(
+        key="access_token",            # Nom du cookie
+        value=token["access_token"],   # Valeur du token d'accès
+        httponly=False,                # Empêche l'accès au cookie par le JavaScript côté client
+        secure=False,                  # Utilise une transmission sécurisée HTTPS
+        samesite="Strict",             # Stratégie SameSite pour renforcer la sécurité CSRF
+        max_age=expires_in             # Durée de vie du cookie en secondes (1 heure ici)
+    )
+    return response
 
 @app.get("/api/ready", tags=["healthcheck"])
 async def read_status() -> dict:

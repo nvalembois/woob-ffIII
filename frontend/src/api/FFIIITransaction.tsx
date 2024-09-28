@@ -42,14 +42,16 @@ export const useTransactionsLoader = (config: Config | null, access_token: strin
         const url: string = ((p: FFIIITransactionsQueryParams) => {
           switch(p) {
             case p.category: 
-              return `${config.apiUrl}/v1/categories/${p.category}/transactions`;
+              return `/v1/categories/${p.category}/transactions`;
             default: 
-              return `${config.apiUrl}/v1/transactions`;
+              return '/v1/transactions';
           }
         })(params);
         const response = await fetch(
           createApiUrlWithParams(config, url, paramsToRecord(params)),
-          { headers: {Authorization: `Bearer ${access_token}`}}
+          { headers: {Authorization: `Bearer ${access_token}`},
+            mode: 'cors'
+          }
         );
         if (!response.ok) {
           throw new Error(`Failed to fetch data: ${response.statusText}`);
